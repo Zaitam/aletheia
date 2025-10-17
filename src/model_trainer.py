@@ -76,6 +76,7 @@ class MLPTrainer:
                 epoch_correct += batch_correct
                 # Backward pass
                 self.model.backward(outputs, y_batch)
+                self.model.update_weights(learning_rate=0.001)
 
                 if (batch + 1) % 100 == 0:
                     print(
