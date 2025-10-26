@@ -1,5 +1,5 @@
 import cupy as cp
-from .base_layer import Layer
+from .base import Layer
 
 
 class Linear(Layer):

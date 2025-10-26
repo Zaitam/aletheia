@@ -1,32 +1,29 @@
-"""
-Generic trainer class that works with any model and optimizer.
-This is the KEY abstraction that ensures fair comparison.
-"""
-
-
 import cupy as cp
+from typing import Callable
 
 
 class Trainer:
-    """
-    Generic trainer that handles the training loop.
-
-    This class ensures that ALL models (M0, M1, M2, M3) are trained
-    using the same protocol, making comparisons fair.
-
-    Args:
-        model: Any model implementing BaseMLP interface
-        optimizer: Any optimizer implementing BaseOptimizer interface
-        lr_scheduler: Optional learning rate scheduler
-        regularizer: Optional regularizer (L2, etc.)
-        early_stopping: Optional early stopping callback
-    """
+    """Generic trainer that handles the training loop."""
 
     def __init__(
-        self, model, optimizer, lr_scheduler=None, regularizer=None, early_stopping=None
+        self,
+        model,
+        optimizer,
+        loss_fn: Callable[[cp.ndarray, cp.ndarray], float],
+        metric_fn: Callable[[cp.ndarray, cp.ndarray], float],
+        prepare_batch_fn: Callable[
+            [cp.ndarray, cp.ndarray], tuple[cp.ndarray, cp.ndarray]
+        ],
+        lr_scheduler=None,
+        regularizer=None,
+        early_stopping=None,
     ):
+        """Initialize trainer."""
         self.model = model
         self.optimizer = optimizer
+        self.loss_fn = loss_fn
+        self.metric_fn = metric_fn
+        self.prepare_batch_fn = prepare_batch_fn
         self.lr_scheduler = lr_scheduler
         self.regularizer = regularizer
         self.early_stopping = early_stopping
@@ -34,23 +31,13 @@ class Trainer:
         # Training history
         self.history = {
             "train_loss": [],
-            "train_acc": [],
+            "train_metric": [],
             "val_loss": [],
-            "val_acc": [],
+            "val_metric": [],
         }
 
     def train_epoch(self, X_train, y_train, batch_size):
-        """
-        Train for one epoch using mini-batch SGD.
-
-        Args:
-            X_train: Training data (n_samples, 28, 28)
-            y_train: Training labels (n_samples,)
-            batch_size: Batch size for mini-batch SGD
-
-        Returns:
-            Average loss and accuracy for the epoch
-        """
+        """Train for one epoch using mini-batch SGD."""
         n_samples = X_train.shape[0]
         n_batches = (n_samples + batch_size - 1) // batch_size
         sample_indices = cp.arange(n_samples)
@@ -60,8 +47,9 @@ class Trainer:
         X_shuffled = X_train[sample_indices]
         y_shuffled = y_train[sample_indices]
 
-        epoch_correct = 0
         epoch_loss = 0.0
+        all_predictions = []
+        all_labels = []
 
         # Mini-batch loop
         for batch in range(n_batches):
@@ -71,34 +59,30 @@ class Trainer:
             batch_data_y = y_shuffled[batch_start:batch_end]
             batch_length = batch_end - batch_start
 
-            # Prepare batch: (batch_length, 28, 28) -> (784, batch_length)
-            X_batch = batch_data_X.reshape(batch_length, -1).T.astype(cp.float32)
-
-            # One-hot encode labels: (output_dim, batch_length)
-            y_batch = cp.zeros((self.model.output_dim, batch_length), dtype=cp.float32)
-            y_batch[batch_data_y.astype(int), cp.arange(batch_length)] = 1.0
+            # Prepare batch using provided function
+            X_batch, y_batch_target = self.prepare_batch_fn(batch_data_X, batch_data_y)
 
             # Forward pass
             outputs = self.model.forward(X_batch)
 
-            # Compute cross-entropy loss
-            loss = -cp.sum(y_batch * cp.log(outputs + 1e-8)) / batch_length
-            epoch_loss += loss * batch_length
+            # Compute loss using provided function
+            batch_loss = self.loss_fn(batch_data_y, outputs)
+            epoch_loss += batch_loss * batch_length
 
-            # Compute accuracy
-            batch_correct = cp.sum(cp.argmax(outputs, axis=0) == batch_data_y)
-            epoch_correct += batch_correct
+            # Store predictions for metric computation
+            batch_predictions = cp.argmax(outputs, axis=0)
+            all_predictions.append(batch_predictions)
+            all_labels.append(batch_data_y)
 
-            # Backward pass
-            self.model.backward(y_batch)
+            # Backward pass (using target format from prepare_batch_fn)
+            self.model.backward(y_batch_target)
 
             # Get gradients
             gradients = self.model.get_gradients()
 
             # Apply regularization if needed
             if self.regularizer:
-                # TODO: Get model weights for L2 regularization
-                pass
+                gradients = self.regularizer.apply(gradients, self.model)
 
             # Compute updates with optimizer
             updates = self.optimizer.step(gradients)
@@ -106,43 +90,29 @@ class Trainer:
             # Update model parameters
             self.model.update_parameters(updates)
 
-        # Return average loss and accuracy
-        avg_loss = float(epoch_loss / n_samples)
-        accuracy = float(epoch_correct / n_samples)
+        # Compute epoch metrics
+        all_predictions = cp.concatenate(all_predictions)
+        all_labels = cp.concatenate(all_labels)
 
-        return avg_loss, accuracy
+        avg_loss = float(epoch_loss / n_samples)
+        metric = self.metric_fn(all_labels, all_predictions)
+
+        return avg_loss, metric
 
     def validate(self, X_val, y_val):
-        """
-        Validate the model on validation set.
+        """Validate the model on validation set."""
+        # Prepare data
+        X_batch, _ = self.prepare_batch_fn(X_val, y_val)
 
-        Args:
-            X_val: Validation data (n_samples, 28, 28)
-            y_val: Validation labels (n_samples,)
-
-        Returns:
-            Validation loss and accuracy
-        """
-        n_samples = X_val.shape[0]
-
-        # Prepare data: (n_samples, 28, 28) -> (784, n_samples)
-        X_batch = X_val.reshape(n_samples, -1).T.astype(cp.float32)
-
-        # One-hot encode labels
-        y_batch = cp.zeros((self.model.output_dim, n_samples), dtype=cp.float32)
-        y_batch[y_val.astype(int), cp.arange(n_samples)] = 1.0
-
-        # Forward pass (no gradient computation needed)
+        # Forward pass
         outputs = self.model.forward(X_batch)
 
-        # Compute loss
-        loss = -cp.sum(y_batch * cp.log(outputs + 1e-8)) / n_samples
+        # Compute metrics using provided functions
+        y_pred = cp.argmax(outputs, axis=0)
+        loss = self.loss_fn(y_val, outputs)
+        metric = self.metric_fn(y_val, y_pred)
 
-        # Compute accuracy
-        correct = cp.sum(cp.argmax(outputs, axis=0) == y_val)
-        accuracy = float(correct / n_samples)
-
-        return float(loss), accuracy
+        return loss, metric
 
     def train(
         self,
@@ -154,25 +124,13 @@ class Trainer:
         batch_size: int,
         verbose: bool = True,
     ):
-        """
-        Full training loop.
-
-        Args:
-            X_train, y_train: Training data
-            X_val, y_val: Validation data
-            epochs: Number of epochs to train
-            batch_size: Batch size
-            verbose: Whether to print progress
-
-        Returns:
-            Training history dictionary
-        """
+        """Full training loop."""
         for epoch in range(epochs):
             # Train one epoch
-            train_loss, train_acc = self.train_epoch(X_train, y_train, batch_size)
+            train_loss, train_metric = self.train_epoch(X_train, y_train, batch_size)
 
             # Validate
-            val_loss, val_acc = self.validate(X_val, y_val)
+            val_loss, val_metric = self.validate(X_val, y_val)
 
             # Update learning rate if scheduler is provided
             if self.lr_scheduler:
@@ -187,15 +145,15 @@ class Trainer:
 
             # Store history
             self.history["train_loss"].append(train_loss)
-            self.history["train_acc"].append(train_acc)
+            self.history["train_metric"].append(train_metric)
             self.history["val_loss"].append(val_loss)
-            self.history["val_acc"].append(val_acc)
+            self.history["val_metric"].append(val_metric)
 
             if verbose:
                 print(
                     f"Epoch {epoch+1}/{epochs} - "
-                    f"Loss: {train_loss:.4f}, Acc: {train_acc:.4f}, "
-                    f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}"
+                    f"Loss: {train_loss:.4f}, Metric: {train_metric:.4f}, "
+                    f"Val Loss: {val_loss:.4f}, Val Metric: {val_metric:.4f}"
                 )
 
         return self.history

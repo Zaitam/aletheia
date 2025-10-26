@@ -11,10 +11,13 @@ class BaseOptimizer(ABC):
 
     @abstractmethod
     def step(self, gradients):
-        """
-        Compute parameter updates given gradients.
-        """
+        """Compute parameter updates given gradients."""
 
     @abstractmethod
     def reset(self):
         """Reset optimizer state (e.g., momentum buffers)"""
+
+    @classmethod
+    @abstractmethod
+    def from_config(cls, config):
+        """Create optimizer from configuration."""

@@ -4,7 +4,7 @@ import cupy as cp
 
 class Dataset:
     """
-    Handles data loading and splitting into train/val/test.
+    Handles data loading and splitting into dev/test.
     This ensures ALL experiments use the same data splits,
     making comparisons fair.
     """
@@ -19,7 +19,7 @@ class Dataset:
         random_seed: int = 42,
     ):
         """
-        Load and split dataset into dev/train.
+        Load and split dataset into dev/test.
         Dataset can be split randomly or in a stratified manner.
         Features can be normalized to [0, 1].
         """

@@ -1,5 +1,3 @@
-"""Experiment management and configuration"""
-
 from .configs import (
     ADAM_CONFIG,
     CV_CONFIG,

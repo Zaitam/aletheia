@@ -1,13 +1,5 @@
-"""Experiment configuration classes and predefined configs"""
-
-from .base_config import (
-    EarlyStoppingConfig,
-    ExperimentConfig,
-    OptimizerConfig,
-    RegularizerConfig,
-    SchedulerConfig,
-)
-from .predefined import (
+from .base import ExperimentConfig
+from .configurations import (
     ADAM_CONFIG,
     CV_CONFIG,
     M0_CONFIG,
@@ -17,12 +9,8 @@ from .predefined import (
 )
 
 __all__ = [
-    # Base config classes
+    # Base experiment config
     "ExperimentConfig",
-    "OptimizerConfig",
-    "SchedulerConfig",
-    "RegularizerConfig",
-    "EarlyStoppingConfig",
     # Predefined experiments
     "M0_CONFIG",
     "M1_CONFIG",

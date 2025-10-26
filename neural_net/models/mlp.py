@@ -1,34 +1,43 @@
 import cupy as cp
-from ..layers import CESoftmax, Linear, Relu
-from .base_mlp import BaseMLP
+from ..layers import Dropout, LayerType, Linear
+from .base import BaseMLP
 
 
 class MLP(BaseMLP):
     """
-    Multi-Layer Perceptron with configurable hidden layers.
+    Multi-Layer Perceptron with configurable hidden layers and activations.
 
-    Architecture: Input -> [Linear -> ReLU] * n_hidden -> Linear -> Softmax
+    Architecture: Input -> [Linear -> Activation] * n_hidden -> Linear -> Output Activation
     """
 
     def __init__(
-        self, input_dim: int, output_dim: int, hidden_layers: list[int], batch_size: int
+        self,
+        input_dim: int,
+        output_dim: int,
+        hidden_layers: list[int],
+        activation: LayerType = LayerType.RELU,
+        output_activation: LayerType = LayerType.SOFTMAX,
+        dropout_rate: float | None = None,
     ):
-        super().__init__(input_dim, output_dim, hidden_layers, batch_size)
+        super().__init__(input_dim, output_dim, hidden_layers)
 
-        self.batch_size = batch_size
         self.layers = []
 
         # Build hidden layers: [input_dim] + hidden_layers
         layer_sizes = [input_dim] + hidden_layers
 
-        # Add hidden layers with ReLU activation
+        # Add hidden layers with activation
         for i in range(len(layer_sizes) - 1):
-            self.layers.append(Linear(layer_sizes[i], layer_sizes[i + 1], batch_size))
-            self.layers.append(Relu())
+            self.layers.append(Linear(layer_sizes[i], layer_sizes[i + 1]))
+            self.layers.append(self._create_activation_layer(activation))
 
-        # Add output layer with Softmax
-        self.layers.append(Linear(layer_sizes[-1], output_dim, batch_size))
-        self.layers.append(CESoftmax())
+            # Add dropout after activation if specified
+            if dropout_rate is not None:
+                self.layers.append(Dropout(dropout_rate))
+
+        # Add output layer
+        self.layers.append(Linear(layer_sizes[-1], output_dim))
+        self.layers.append(output_activation.value())
 
     def forward(self, X):
         """Forward pass through the network"""
@@ -58,8 +67,7 @@ class MLP(BaseMLP):
     def update_parameters(self, updates):
         """
         Update parameters given updates from optimizer.
-        Args:
-            updates: list of (weight_update, bias_update) tuples
+        updates: list of (weight_update, bias_update) tuples
         """
         update_idx = 0
         for layer in self.layers:
@@ -92,4 +100,7 @@ class MLP(BaseMLP):
 
     def predict(self, X):
         """Make predictions"""
-        return self.forward(X)
+        activations = X
+        for layer in self.layers:
+            activations = layer.evaluate(activations)
+        return activations

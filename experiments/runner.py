@@ -1,29 +1,14 @@
-"""
-Experiment runner.
-Ties together model, optimizer, trainer, and evaluator.
-"""
-
 import cupy as cp
 
-from neural_net.evaluation import Evaluator
-from neural_net.models import MLP
-from neural_net.optimizers import SGD, Adam
-from neural_net.training import (
-    EarlyStopping,
-    ExponentialScheduler,
-    L2Regularizer,
-    LinearScheduler,
-    Trainer,
-)
+from neural_net import create_training_components
+from neural_net.evaluation import evaluate_model
 
-from .configs.base_config import ExperimentConfig
+from .configs.base import ExperimentConfig
 
 
 class Experiment:
     """
     Runs a complete experiment given a configuration.
-
-    This is the high-level interface that puts everything together.
     """
 
     def __init__(self, config: ExperimentConfig, dataset):
@@ -31,81 +16,30 @@ class Experiment:
         self.dataset = dataset
 
         # Set random seed
-        cp.random.seed(config.random_seed)
+        cp.random.seed(config.training.random_seed)
 
-        # Initialize components
+        # Components will be created in build()
+        self.components = None
         self.model = None
-        self.optimizer = None
         self.trainer = None
-        self.evaluator = Evaluator()
 
-    def build_model(self):
-        """Build model based on config"""
-        input_dim = self.dataset.X_devel.shape[1]  # Already flattened
+    def build(self):
+        """Build all components from configuration using factory functions."""
+        # Get dataset dimensions
+        input_dim = self.dataset.X_devel.shape[1]
         output_dim = len(cp.unique(self.dataset.y_devel))
 
-        self.model = MLP(
+        # Create all components using the factory
+        self.components = create_training_components(
+            model_config=self.config.model,
+            training_config=self.config.training,
             input_dim=input_dim,
             output_dim=output_dim,
-            hidden_layers=self.config.hidden_layers,
-            batch_size=self.config.batch_size,
         )
 
-    def build_optimizer(self):
-        """Build optimizer based on config"""
-        from neural_net.optimizers import OptimizerType
-
-        if self.config.optimizer.type == OptimizerType.SGD:
-            self.optimizer = SGD(
-                learning_rate=self.config.optimizer.learning_rate,
-                momentum=self.config.optimizer.momentum,
-            )
-        elif self.config.optimizer.type == OptimizerType.ADAM:
-            self.optimizer = Adam(
-                learning_rate=self.config.optimizer.learning_rate,
-                beta1=self.config.optimizer.beta1,
-                beta2=self.config.optimizer.beta2,
-            )
-        else:
-            raise ValueError(f"Unknown optimizer: {self.config.optimizer.type}")
-
-    def build_trainer(self):
-        """Build trainer with all components"""
-        # Learning rate scheduler
-        lr_scheduler = None
-        if self.config.scheduler:
-            from neural_net.training.lr_schedulers import SchedulerType
-
-            if self.config.scheduler.type == SchedulerType.LINEAR:
-                lr_scheduler = LinearScheduler(
-                    self.optimizer,
-                    self.config.optimizer.learning_rate,
-                    self.config.scheduler.decay_rate,
-                )
-            elif self.config.scheduler.type == SchedulerType.EXPONENTIAL:
-                lr_scheduler = ExponentialScheduler(
-                    self.optimizer,
-                    self.config.optimizer.learning_rate,
-                    self.config.scheduler.gamma,
-                )
-
-        # Regularizer
-        regularizer = None
-        if self.config.regularizer.use_l2:
-            regularizer = L2Regularizer(self.config.regularizer.l2_lambda)
-
-        # Early stopping
-        early_stopping = None
-        if self.config.early_stopping.enabled:
-            early_stopping = EarlyStopping(patience=self.config.early_stopping.patience)
-
-        self.trainer = Trainer(
-            model=self.model,
-            optimizer=self.optimizer,
-            lr_scheduler=lr_scheduler,
-            regularizer=regularizer,
-            early_stopping=early_stopping,
-        )
+        # Extract commonly used components
+        self.model = self.components["model"]
+        self.trainer = self.components["trainer"]
 
     def run(self):
         """Run the complete experiment"""
@@ -114,10 +48,8 @@ class Experiment:
         print(f"Description: {self.config.description}")
         print(f"{'='*60}\n")
 
-        # Build components
-        self.build_model()
-        self.build_optimizer()
-        self.build_trainer()
+        # Build all components
+        self.build()
 
         # Get data (updated for dev/test split)
         X_train, y_train = self.dataset.get_devel()
@@ -136,19 +68,22 @@ class Experiment:
             y_train,
             X_val,
             y_val,
-            epochs=self.config.epochs,
-            batch_size=self.config.batch_size,
+            epochs=self.config.training.epochs,
+            batch_size=self.config.training.batch_size,
             verbose=True,
         )
 
         # Evaluate on test
         print("\nEvaluating on test set...")
-        test_metrics = self.evaluator.evaluate(
-            self.model, X_test, y_test, self.config.name
-        )
+        test_metrics = evaluate_model(self.model, X_test, y_test)
 
         print("\nTest Results:")
         print(f"  Accuracy: {test_metrics['accuracy']:.4f}")
         print(f"  F1-Score: {test_metrics['f1_macro']:.4f}")
 
-        return {"history": history, "test_metrics": test_metrics, "model": self.model}
+        return {
+            "history": history,
+            "test_metrics": test_metrics,
+            "model": self.model,
+            "components": self.components,
+        }

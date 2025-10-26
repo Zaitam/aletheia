@@ -1,23 +1,27 @@
 import cupy as cp
-from .base_optimizer import BaseOptimizer
+from .base import BaseOptimizer
 
 
 class SGD(BaseOptimizer):
-    """
-    Stochastic Gradient Descent optimizer with momentum and mini-batch SGD.
-    """
+    """Stochastic Gradient Descent optimizer with momentum and mini-batch SGD."""
 
     def __init__(self, learning_rate: float, momentum: float = 0.0):
         super().__init__(learning_rate)
         self.momentum = momentum
         self.velocity = None  # Will store momentum buffers
 
+    @classmethod
+    def from_config(cls, config):
+        """Create SGD optimizer from configuration."""
+        return cls(
+            learning_rate=config.learning_rate,
+            momentum=config.momentum,
+        )
+
     def step(
         self, gradients: list[tuple[cp.ndarray, cp.ndarray]]
     ) -> list[tuple[cp.ndarray, cp.ndarray]]:
-        """
-        Compute parameter updates using gradient descent.
-        """
+        """Compute parameter updates using gradient descent."""
         if self.momentum > 0 and self.velocity is None:
             self.velocity = []
             for grad_w, grad_b in gradients:

@@ -16,9 +16,7 @@ class KFoldSplitter:
     def split(
         self, X: cp.ndarray, y: cp.ndarray
     ) -> Generator[tuple[cp.ndarray, cp.ndarray], None, None]:
-        """
-        Generate K-Fold splits.
-        """
+        """Generate and yield K-Fold splits."""
         n_samples = X.shape[0]
 
         if self.stratified:
@@ -37,21 +35,11 @@ class KFoldSplitter:
     def _get_all_folds(
         self, X: cp.ndarray, y: cp.ndarray
     ) -> list[tuple[cp.ndarray, cp.ndarray]]:
-        """
-        (Utility) Get all K-Fold splits as a list.
-        """
+        """(Utility) Get all K-Fold splits as a list."""
         return list(self.split(X, y))
 
     def _random_kfold(self, n_samples: int) -> list[cp.ndarray]:
-        """
-        Random K-Fold split implementation.
-
-        Args:
-            n_samples: Total number of samples
-
-        Returns:
-            List of indices arrays, one for each fold
-        """
+        """Random K-Fold split implementation."""
         cp.random.seed(self.random_seed)
         indices = cp.random.permutation(n_samples)
 

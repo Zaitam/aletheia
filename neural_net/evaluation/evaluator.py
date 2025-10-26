@@ -1,72 +1,69 @@
 import cupy as cp
+from numpy.typing import NDArray
 
-from ..models.base_mlp import BaseMLP
-
+from ..models.base import BaseMLP
 from .metrics import compute_metrics
 
 
-class Evaluator:
-    """Evaluates models on test data using consistent metrics."""
+def evaluate_model(
+    model: BaseMLP,
+    X_test: cp.ndarray,
+    y_test: cp.ndarray,
+    include_confusion_matrix: bool = True,
+) -> dict[str, float | NDArray]:
+    """Evaluate a model on test data."""
+    # Get predictions
+    y_pred_proba = model.predict(X_test)
+    y_pred = cp.argmax(y_pred_proba, axis=0)
 
-    def __init__(self):
-        self.results = {}
+    # Compute metrics
+    metrics = compute_metrics(
+        y_test, y_pred, y_pred_proba, include_confusion_matrix=include_confusion_matrix
+    )
 
-    def evaluate(
-        self, model: BaseMLP, X_test: cp.ndarray, y_test: cp.ndarray, model_name: str
-    ) -> dict[str, float]:
-        """Evaluate a model on test data."""
-        y_pred_proba = model.predict(X_test)
-        y_pred = cp.argmax(y_pred_proba, axis=0)
+    return metrics
 
-        metrics = compute_metrics(y_test, y_pred, y_pred_proba)
-        self.results[model_name] = metrics
 
-        return metrics
+def compare_models(results: dict[str, dict[str, float]]) -> None:
+    """
+    Print a comparison table of multiple model results.
+    """
+    print("\n" + "=" * 70)
+    print("MODEL COMPARISON")
+    print("=" * 70)
 
-    def compare_models(self):
-        """Compare all evaluated models."""
-        # TODO: Create comparison table
-        # Print accuracy, F1, cross-entropy for each model
+    # Determine which metrics are available
+    all_metrics = set()
+    for metrics in results.values():
+        all_metrics.update(metrics.keys())
+    all_metrics.discard("confusion_matrix")  # Don't print in comparison
 
-        print("\n" + "=" * 60)
-        print("MODEL COMPARISON")
-        print("=" * 60)
+    # Print header
+    metric_names = sorted(all_metrics)
+    print(f"\n{'Model':<20}", end="")
+    for metric in metric_names:
+        print(f"{metric.replace('_', ' ').title():<20}", end="")
+    print()
+    print("-" * (20 + 20 * len(metric_names)))
 
-        for model_name, metrics in self.results.items():
-            print(f"\n{model_name}:")
-            print(f"  Accuracy: {metrics['accuracy']:.4f}")
-            print(f"  F1-Score (Macro): {metrics['f1_macro']:.4f}")
-            if "cross_entropy" in metrics:
-                print(f"  Cross-Entropy: {metrics['cross_entropy']:.4f}")
+    # Print each model's results
+    for model_name, metrics in results.items():
+        print(f"{model_name:<20}", end="")
+        for metric in metric_names:
+            value = metrics.get(metric, float("nan"))
+            if isinstance(value, (int, float)):
+                print(f"{value:<20.4f}", end="")
+            else:
+                print(f"{'N/A':<20}", end="")
+        print()
 
-        return self.results
+    print()
 
-    def evaluate_with_noise(self, model, X_test, y_test, noise_levels, model_name: str):
-        """
-        Evaluate model robustness to noise (for exercise 4d).
 
-        Args:
-            model: Model to evaluate
-            X_test: Test data
-            y_test: Test labels
-            noise_levels: List of noise standard deviations to test
-            model_name: Name of the model
-
-        Returns:
-            Dictionary with results for each noise level
-        """
-        results = {}
-
-        for noise_std in noise_levels:
-            # Add Gaussian noise
-            X_noisy = X_test + cp.random.normal(0, noise_std, X_test.shape)
-            X_noisy = cp.clip(X_noisy, 0, 1)  # Keep in valid range
-
-            # Evaluate
-            y_pred_proba = model.predict(X_noisy)
-            y_pred = cp.argmax(y_pred_proba, axis=0)
-
-            metrics = compute_metrics(y_test, y_pred, y_pred_proba)
-            results[noise_std] = metrics
-
-        return results
+def create_results_dict(
+    model_evaluations: list[tuple[str, dict[str, float]]],
+) -> dict[str, dict[str, float]]:
+    """
+    Convert a list of (model_name, metrics) tuples to a results dictionary.
+    """
+    return {name: metrics for name, metrics in model_evaluations}

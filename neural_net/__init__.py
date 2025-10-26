@@ -9,16 +9,27 @@ __version__ = "0.1.0"
 
 # Import key classes for convenient access
 from .data import Dataset, KFoldSplitter
-from .evaluation import Evaluator, compute_metrics
+from .evaluation import compute_metrics, evaluate_model
+from .factory import create_training_components
 from .layers import CESoftmax, Dropout, Layer, LayerType, Linear, Relu
-from .models import MLP, BaseMLP
-from .optimizers import SGD, Adam, OptimizerType
-from .training import SchedulerType, Trainer
+from .models import MLP, BaseMLP, ModelConfig
+from .optimizers import SGD, Adam, OptimizerType, OptimizerConfig
+from .training import (
+    SchedulerType,
+    Trainer,
+    TrainingConfig,
+    SchedulerConfig,
+    RegularizerConfig,
+    EarlyStoppingConfig,
+)
 
 __all__ = [
+    # Factory
+    "create_training_components",
     # Models
     "MLP",
     "BaseMLP",
+    "ModelConfig",
     # Layers
     "Layer",
     "Linear",
@@ -30,13 +41,18 @@ __all__ = [
     "SGD",
     "Adam",
     "OptimizerType",
+    "OptimizerConfig",
     # Training
     "Trainer",
     "SchedulerType",
+    "TrainingConfig",
+    "SchedulerConfig",
+    "RegularizerConfig",
+    "EarlyStoppingConfig",
     # Data
     "Dataset",
     "KFoldSplitter",
     # Evaluation
-    "Evaluator",
+    "evaluate_model",
     "compute_metrics",
 ]

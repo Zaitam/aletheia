@@ -1,16 +1,6 @@
-"""
-Training script for neural network experiments.
-
-Usage:
-    python scripts/train.py --experiment M0
-    python scripts/train.py --experiment M1
-    python scripts/train.py --all
-"""
-
 import argparse
 
-from experiments import Experiment
-from experiments.configs import M0_CONFIG
+from experiments import Experiment, configs
 from neural_net.data import Dataset
 from neural_net.utils import ExperimentLogger, plot_training_history
 
@@ -21,7 +11,7 @@ def main():
         "--experiment",
         type=str,
         default="M0",
-        help="Experiment to run (M0, M1, M2, M3)",
+        help="Experiment to run",
     )
     parser.add_argument("--all", action="store_true", help="Run all experiments")
     args = parser.parse_args()
@@ -39,22 +29,27 @@ def main():
 
     # Logger
     logger = ExperimentLogger()
+    all_configs_list = [
+        getattr(configs, name)
+        for name in dir(configs)
+        if name.endswith("_CONFIG") and not name.startswith("_")
+    ]
 
     # Run experiments
     if args.all:
-        configs = [M0_CONFIG]  # Add M1_CONFIG, M2_CONFIG, M3_CONFIG later
+        configs_list = all_configs_list
     else:
-        # Map experiment name to config
-        config_map = {
-            "M0": M0_CONFIG,
-            # 'M1': M1_CONFIG,
-            # 'M2': M2_CONFIG,
-            # 'M3': M3_CONFIG,
-        }
-        configs = [config_map[args.experiment]]
+        # Dynamically get config by name
+        config_name = f"{args.experiment.upper()}_CONFIG"
+        try:
+            configs_list = [getattr(configs, config_name)]
+        except AttributeError:
+            print(f"Error: Experiment '{args.experiment}' not found.")
+            print(f"Available experiments: {all_configs_list}")
+            return
 
     # Run each experiment
-    for config in configs:
+    for config in configs_list:
         experiment = Experiment(config, dataset)
         results = experiment.run()
 

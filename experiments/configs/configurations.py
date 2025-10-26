@@ -8,6 +8,8 @@ from neural_net.training import (
 
 from .base import ExperimentConfig
 
+# TODO: @Santi hace las reales, estas son de AI como ejemplo a partir de lo que estaba antes
+
 # ============================================================================
 # Baseline Models
 # ============================================================================

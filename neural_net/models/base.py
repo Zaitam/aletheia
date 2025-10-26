@@ -2,17 +2,12 @@ from abc import ABC, abstractmethod
 
 
 class BaseMLP(ABC):
-    """
-    Abstract base class for Multi-Layer Perceptron models.
-    """
+    """Abstract base class for Multi-Layer Perceptron models."""
 
-    def __init__(
-        self, input_dim: int, output_dim: int, hidden_layers: list[int], batch_size: int
-    ):
+    def __init__(self, input_dim: int, output_dim: int, hidden_layers: list[int]):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.hidden_layers = hidden_layers
-        self.batch_size = batch_size
 
     @abstractmethod
     def forward(self, X):

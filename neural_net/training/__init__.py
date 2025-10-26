@@ -2,7 +2,14 @@
 
 from enum import Enum
 
+from .config import (
+    EarlyStoppingConfig,
+    RegularizerConfig,
+    SchedulerConfig,
+    TrainingConfig,
+)
 from .early_stopping import EarlyStopping
+from .factory import create_early_stopping, create_regularizer, create_scheduler
 from .lr_schedulers import (
     ExponentialScheduler,
     LinearScheduler,
@@ -19,14 +26,30 @@ __all__ = [
     "L2Regularizer",
     "EarlyStopping",
     "SchedulerType",
+    # Factories
+    "create_scheduler",
+    "create_regularizer",
+    "create_early_stopping",
+    # Configs
+    "TrainingConfig",
+    "SchedulerConfig",
+    "RegularizerConfig",
+    "EarlyStoppingConfig",
 ]
+
+from .lr_schedulers import (
+    CosineAnnealingScheduler,
+    ExponentialScheduler,
+    LinearScheduler,
+    LRScheduler,
+    StepScheduler,
+)
 
 
 class SchedulerType(Enum):
     """Types of learning rate schedulers available."""
 
-    LINEAR = "linear"
-    EXPONENTIAL = "exponential"
-    STEP = "step"
-    REDUCE_ON_PLATEAU = "reduce_on_plateau"
-    COSINE_ANNEALING = "cosine_annealing"
+    LINEAR = LinearScheduler
+    EXPONENTIAL = ExponentialScheduler
+    STEP = StepScheduler
+    COSINE_ANNEALING = CosineAnnealingScheduler
