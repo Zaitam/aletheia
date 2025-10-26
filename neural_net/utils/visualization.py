@@ -279,3 +279,190 @@ def plot_noise_robustness(
         plt.show()
 
     return fig
+
+
+def plot_one_per_class(
+    X: NDArray[np.floating],
+    y: NDArray[np.integer],
+    save_path: str | Path = "figures/one_per_class.png",
+    figsize: tuple[int, int] = (16, 12),
+    show: bool = True,
+) -> Figure:
+    """
+    Visualize one image per class in a grid.
+
+    Args:
+        X: Image data (n_samples, 28, 28) or (n_samples, 784)
+        y: Labels (n_samples,)
+        save_path: Path to save figure
+        figsize: Figure size
+        show: Whether to display the plot
+    """
+    # Use custom style if available
+    if STYLE_PATH.exists():
+        plt.style.use(str(STYLE_PATH))
+
+    # Ensure figures directory exists
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Get unique classes
+    unique_classes = np.unique(y)
+    n_classes = len(unique_classes)
+
+    # Create grid (7x7 = 49, good for 47 classes)
+    n_rows = 7
+    n_cols = 7
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=figsize)
+    axes = axes.flatten()
+
+    # Plot one image per class
+    for idx, class_label in enumerate(unique_classes):
+        # Find first occurrence of this class
+        class_indices = np.where(y == class_label)[0]
+        sample_idx = class_indices[0]
+
+        # Get image and reshape if needed
+        img = X[sample_idx].reshape(28, 28) if X[sample_idx].ndim == 1 else X[sample_idx]
+
+        # Plot
+        axes[idx].imshow(img, cmap="gray")
+        axes[idx].set_title(f"Class {int(class_label)}", fontsize=8)
+        axes[idx].axis("off")
+
+    # Hide unused subplots
+    for idx in range(n_classes, n_rows * n_cols):
+        axes[idx].axis("off")
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    print(f"✓ Plot saved to {save_path}")
+
+    if show:
+        plt.show()
+
+    return fig
+
+
+def plot_class_distribution(
+    y: NDArray[np.integer],
+    save_path: str | Path = "figures/class_distribution.png",
+    figsize: tuple[int, int] = (14, 6),
+    show: bool = True,
+) -> Figure:
+    """
+    Plot the distribution of classes in the dataset.
+
+    Args:
+        y: Labels (n_samples,)
+        save_path: Path to save figure
+        figsize: Figure size
+        show: Whether to display the plot
+    """
+    # Use custom style if available
+    if STYLE_PATH.exists():
+        plt.style.use(str(STYLE_PATH))
+
+    # Ensure figures directory exists
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Count samples per class
+    unique_classes, counts = np.unique(y, return_counts=True)
+
+    # Create bar plot
+    fig, ax = plt.subplots(figsize=figsize)
+
+    bars = ax.bar(
+        unique_classes,
+        counts,
+        color="#4165c0",
+        alpha=0.8,
+        edgecolor="black",
+        linewidth=0.5,
+    )
+
+    ax.set_xlabel("Class Label", fontsize=12)
+    ax.set_ylabel("Number of Samples", fontsize=12)
+    ax.set_title("Class Distribution in EMNIST Dataset", fontsize=14)
+    ax.grid(axis="y", alpha=0.3, linestyle="--", linewidth=0.5)
+
+    # Add value labels on bars
+    for bar in bars:
+        height = bar.get_height()
+        ax.text(
+            bar.get_x() + bar.get_width() / 2.0,
+            height,
+            f"{int(height)}",
+            ha="center",
+            va="bottom",
+            fontsize=6,
+        )
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    print(f"✓ Plot saved to {save_path}")
+
+    if show:
+        plt.show()
+
+    return fig
+
+
+def plot_pixel_statistics(
+    X: NDArray[np.floating],
+    save_path: str | Path = "figures/pixel_statistics.png",
+    figsize: tuple[int, int] = (12, 5),
+    show: bool = True,
+) -> Figure:
+    """
+    Plot mean and std of pixel values across the dataset.
+
+    Args:
+        X: Image data (n_samples, 28, 28) or (n_samples, 784)
+        save_path: Path to save figure
+        figsize: Figure size
+        show: Whether to display the plot
+    """
+    # Use custom style if available
+    if STYLE_PATH.exists():
+        plt.style.use(str(STYLE_PATH))
+
+    # Ensure figures directory exists
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Reshape if needed
+    if X.ndim == 2 and X.shape[1] == 784:
+        X_reshaped = X.reshape(-1, 28, 28)
+    else:
+        X_reshaped = X
+
+    # Compute statistics
+    mean_img = np.mean(X_reshaped, axis=0)
+    std_img = np.std(X_reshaped, axis=0)
+
+    # Create subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+
+    # Mean
+    im1 = ax1.imshow(mean_img, cmap="viridis")
+    ax1.set_title("Mean Pixel Values", fontsize=12)
+    ax1.axis("off")
+    plt.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
+
+    # Std
+    im2 = ax2.imshow(std_img, cmap="viridis")
+    ax2.set_title("Std Pixel Values", fontsize=12)
+    ax2.axis("off")
+    plt.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    print(f"✓ Plot saved to {save_path}")
+
+    if show:
+        plt.show()
+
+    return fig
