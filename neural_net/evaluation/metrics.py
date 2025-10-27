@@ -106,7 +106,7 @@ def precision_recall_f1(
         f1_scores.append(f1)
         weights.append(tp + fn)  # Number of true instances
 
-    # Use the averaging function from the enum - no if needed!
+    # Use the averaging function from the enum
     averaging_fn = average.value
     avg_precision = averaging_fn(precisions, weights)
     avg_recall = averaging_fn(recalls, weights)

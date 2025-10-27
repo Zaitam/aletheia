@@ -1,8 +1,6 @@
-from enum import Enum
-
 from .adam import Adam
 from .base import BaseOptimizer
-from .config import OptimizerConfig
+from .config import OptimizerConfig, OptimizerType
 from .factory import create_optimizer
 from .sgd import SGD
 
@@ -14,10 +12,3 @@ __all__ = [
     "create_optimizer",
     "OptimizerConfig",
 ]
-
-
-class OptimizerType(Enum):
-    """Types of optimizers available."""
-
-    SGD = SGD
-    ADAM = Adam

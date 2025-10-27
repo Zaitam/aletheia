@@ -1,11 +1,8 @@
-"""Training utilities including trainer, schedulers, regularizers, and early stopping."""
-
-from enum import Enum
-
 from .config import (
     EarlyStoppingConfig,
     RegularizerConfig,
     SchedulerConfig,
+    SchedulerType,
     TrainingConfig,
 )
 from .early_stopping import EarlyStopping
@@ -36,17 +33,3 @@ __all__ = [
     "RegularizerConfig",
     "EarlyStoppingConfig",
 ]
-
-from .lr_schedulers import (
-    CosineAnnealingScheduler,
-    StepScheduler,
-)
-
-
-class SchedulerType(Enum):
-    """Types of learning rate schedulers available."""
-
-    LINEAR = LinearScheduler
-    EXPONENTIAL = ExponentialScheduler
-    STEP = StepScheduler
-    COSINE_ANNEALING = CosineAnnealingScheduler

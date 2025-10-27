@@ -1,8 +1,16 @@
-"""Optimizer configuration."""
-
 from dataclasses import dataclass
 
-from . import OptimizerType
+from pyparsing import Enum
+
+from .adam import Adam
+from .sgd import SGD
+
+
+class OptimizerType(Enum):
+    """Types of optimizers available."""
+
+    SGD = SGD
+    ADAM = Adam
 
 
 @dataclass

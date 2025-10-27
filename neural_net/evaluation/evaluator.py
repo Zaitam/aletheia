@@ -13,7 +13,7 @@ def evaluate_model(
 ) -> dict[str, float | NDArray]:
     """Evaluate a model on test data."""
     # Get predictions
-    y_pred_proba = model.predict(X_test)
+    y_pred_proba = model.predict(X_test.T)
     y_pred = cp.argmax(y_pred_proba, axis=0)
 
     # Compute metrics

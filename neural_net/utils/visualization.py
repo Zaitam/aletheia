@@ -2,10 +2,10 @@ from pathlib import Path
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
-from matplotlib.typing import RcStyleType
 import numpy as np
 import seaborn as sns
 from matplotlib.figure import Figure
+from matplotlib.typing import RcStyleType
 from numpy.typing import NDArray
 
 
@@ -406,8 +406,9 @@ def plot_pixel_statistics(
     """
     Plot mean and std of pixel values across the dataset.
     """
-    import numpy as np
     from pathlib import Path
+
+    import numpy as np
 
     # Use custom style if available
     if style:
@@ -418,10 +419,7 @@ def plot_pixel_statistics(
     Path(save_path).parent.mkdir(parents=True, exist_ok=True)
 
     # Reshape if needed
-    if X.ndim == 2 and X.shape[1] == 784:
-        X_reshaped = X.reshape(-1, 28, 28)
-    else:
-        X_reshaped = X
+    X_reshaped = X.reshape(-1, 28, 28) if X.ndim == 2 and X.shape[1] == 784 else X
 
     # Compute statistics
     mean_img = np.mean(X_reshaped, axis=0)
