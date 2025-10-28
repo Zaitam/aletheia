@@ -1,9 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 
 from ..optimizers import OptimizerConfig
-from . import SchedulerType
+from .lr_schedulers import (
+    CosineAnnealingScheduler,
+    ExponentialScheduler,
+    LinearScheduler,
+    StepScheduler,
+)
+
+
+class SchedulerType(Enum):
+    """Types of learning rate schedulers available."""
+
+    LINEAR = LinearScheduler
+    EXPONENTIAL = ExponentialScheduler
+    STEP = StepScheduler
+    COSINE_ANNEALING = CosineAnnealingScheduler
 
 
 @dataclass
